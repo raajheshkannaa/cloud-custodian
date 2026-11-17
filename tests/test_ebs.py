@@ -1160,6 +1160,33 @@ class PiopsMetricsFilterTest(BaseTest):
         resources = policy.run()
         self.assertEqual(len(resources), 0)
 
+    def test_ebs_metrics_percent_filter_extended_statistics(self):
+        policy = self.load_policy(
+            {
+                "name": "ebs-unused-piops-p99",
+                "resource": "ebs",
+                "filters": [
+                    {
+                        "type": "metrics",
+                        "name": "VolumeConsumedReadWriteOps",
+                        "op": "lt",
+                        "value": 50,
+                        "statistics": "p99",
+                        "days": 1,
+                        "percent-attr": "Iops",
+                    }
+                ],
+            }
+        )
+        metrics = policy.resource_manager.filters[0]
+
+        def get_metric_data(client, params):
+            return [{"ExtendedStatistics": {"p99": 10.0}}]
+
+        self.patch(metrics, "get_metric_data", get_metric_data)
+        volume = {"VolumeId": "vol-1", "VolumeType": "io1", "Iops": 100}
+        self.assertEqual(metrics.process([volume]), [volume])
+
 
 class VolumeQueryFilterTest(BaseTest):
 
